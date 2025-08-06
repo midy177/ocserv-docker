@@ -1,0 +1,1 @@
+make build CA_CN=yeastar CA_ORG=ys_ops SERV_DOMAIN=x5j85ws-rditspp.yeastardigital.com SERV_ORG=ys_ops USER_ID=6X2m13^owxgJetUu IMAGE_TAG=cm-cluster

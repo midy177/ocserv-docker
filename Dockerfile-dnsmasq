@@ -1,0 +1,67 @@
+FROM ubuntu:24.04
+MAINTAINER ly Wu <wuluoyong7@gmail.com>
+
+# 接收构建参数
+ARG CA_CN
+ARG CA_ORG
+ARG SERV_DOMAIN
+ARG SERV_ORG
+ARG USER_ID
+
+# 设置为环境变量
+ENV CA_CN=${CA_CN}
+ENV CA_ORG=${CA_ORG}
+ENV SERV_DOMAIN=${SERV_DOMAIN}
+ENV SERV_ORG=${SERV_ORG}
+ENV USER_ID=${USER_ID}
+
+ADD ./certs /opt/certs
+ADD ./bin /usr/local/bin
+ADD dnsmasq.conf /usr/local/etc/dnsmasq.conf
+RUN chmod a+x /usr/local/bin/*
+WORKDIR /etc/ocserv
+
+# 设置时区为中国
+RUN echo "Asia/Shanghai" > /etc/timezone
+
+# 安装编译器、依赖、工具、dnsmasq
+RUN apt-get update && apt-get install -y \
+    build-essential wget xz-utils libgnutls28-dev \
+    libev-dev libwrap0-dev libpam0g-dev libseccomp-dev libreadline-dev \
+    libnl-route-3-dev libkrb5-dev liboath-dev libtalloc-dev \
+    libhttp-parser-dev libpcl1-dev libopts25-dev autogen pkg-config nettle-dev \
+    gnutls-bin gperf liblockfile-bin nuttcp lcov iptables unzip dnsmasq \
+    && rm -rf /var/lib/apt/lists/*
+
+# 配置 dnsmasq
+RUN mkdir -p /temp && cd /temp \
+    && wget https://github.com/felixonmars/dnsmasq-china-list/archive/master.zip \
+    && unzip master.zip \
+    && cd dnsmasq-china-list-master \
+    && cp *.conf /etc/dnsmasq.d/ \
+    && cd / && rm -rf /temp
+
+# 安装 lz4
+RUN mkdir -p /temp && cd /temp \
+    && wget https://github.com/lz4/lz4/releases/latest -O lz4.html \
+    && export LZ4_VERSION=$(cat lz4.html | grep -m 1 -o 'v[0-9]\.[0-9]\.[0-9]') \
+    && export LZ4_SUFFIX=$(cat lz4.html | grep -m 1 -o '[0-9]\.[0-9]\.[0-9]') \
+    && wget https://github.com/lz4/lz4/archive/${LZ4_VERSION}.tar.gz \
+    && tar xvf ${LZ4_VERSION}.tar.gz \
+    && cd lz4-${LZ4_SUFFIX} \
+    && make install \
+    && ln -sf /usr/local/lib/liblz4.* /usr/lib/ \
+    && cd / && rm -rf /temp
+
+# 安装 ocserv
+RUN mkdir -p /temp && cd /temp \
+    && wget https://ocserv.gitlab.io/www/download.html \
+    && export OCSERV_VERSION=$(cat download.html | grep -o '[0-9]*\.[0-9]*\.[0-9]*') \
+    && wget ftp://ftp.infradead.org/pub/ocserv/ocserv-${OCSERV_VERSION}.tar.xz \
+    && tar xvf ocserv-${OCSERV_VERSION}.tar.xz \
+    && cd ocserv-${OCSERV_VERSION} \
+    && ./configure --prefix=/usr --sysconfdir=/etc --with-local-talloc \
+    && make && make install \
+    && cd / && rm -rf /temp
+
+CMD ["entrypoint.sh"]
