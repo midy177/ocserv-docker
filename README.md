@@ -67,40 +67,9 @@ $> docker exec -it $(docker ps -a | grep vpn_run | awk '{print $1}') ocpasswd yo
 $> Enter password:
 $> Re-enter password:
 ```
-这个的原理是借用 docker 运行中的 container , 在其里面运行 `ocpasswd` 改变 Volumn 进去的 `./ocserv/ocpasswd` 文件内容, 所以当你运行完这行命令, 本机(非 container 中)的 `./ocserv/ocpasswd` 的文件内容会真实发生变化
-
-### 清理掉预设的两个用户名[ocserv.conf](ocserv/ocserv.conf)
-直接打开 `./ocserv/ocpasswd` 删掉 wyatt/holly 开头的两行就好了. 
+原理是借用 docker 运行中的 container , 在其里面运行 `ocpasswd` 改变 Volumn 进去的 `./ocserv/ocpasswd` 文件内容, 所以当你运行完这行命令, 本机(非 container 中)的 `./ocserv/ocpasswd` 的文件内容会真实发生变化
 
 
-## 信息
-* Box Size: 164 MB   (原来是 380+ MB, 基础镜像缩减)
-* 基础 Box: ubuntu:trusty
-* 测试过的环境: 
-  * [Linode 1G Ubuntu 14.04 LTS]
-  * [Vultr 768MB Ubuntu 14.04 LTS]
-  * [DigitalOcean 512MB Docker 1.2.0 on Ubuntu 14.04]
-
-## Refs
-* [ocserv 0.8.2 Manual](http://www.infradead.org/ocserv/manual.html)
-* [[原创]linode vps debian7.5安装配置ocserv(OpenConnect server)](http://luoqkk.com/linode-vps-debian-installation-and-configuration-ocserv-openconnect-server.html)
-* [Install Cisco AnyConnect Server on a Generic Linux Server](https://izhaom.in/2014/08/install-cisco-anyconnect-server-on-a-generic-linux-server/)
-* [AnyConnect 带来 iPhone 上的新生活](http://imkevin.me/post/80157872840/anyconnect-iphone)
-* [Install Ocserv on CentOS 6.5](https://botu.me/install-ocserv-on-centos6/)
-* [Gnutls 3.1.23 on Ubuntu 14.04](http://www.bauer-power.net/2014/06/how-to-install-gnutls-3123-from-source.html)
-
-
-## 问题
-
-### 大家最近连接上 ocserv 就断开, 我猜测因为有比较多的人使用同一个 Docker Image 使得太多人使用同一个证书, 然后我做了处理, 
-
-至少我的几台服务器已经正常, 不会断开了. 请大家 `docker rmi wppurking/ocserv` 然后再执行运行的命令下载最新的 image, 如果有条件自己 build 以下或者使用自己的证书即可.
-
-### 关于限速, 我想应该是网络的干扰. 我部署的服务器 ( [1.5 MB/s](https://toolstud.io/data/bandwidth.php?compare=network&speed=1.5&speed_unit=MB%2Fs) 大概 12 Mbps) 如下:  
-![AnyConnect](http://77g8qz.com1.z0.glb.clouddn.com/anyconnect.png?imageView2/2/w/300)
-
-### 如果你网络好的话, 那么可以看到如下的情况 ( [7.1MB/s](https://toolstud.io/data/bandwidth.php?compare=network&speed=7.1&speed_unit=MB%2Fs) 的峰值, 56.8 Mbps) :
-![AnyConnect Speed](http://77g8qz.com1.z0.glb.clouddn.com/anyconnect-top.jpg?imageView2/0/h/400/q/100)
 
 ### anyconnect client 下载地址
 https://ocserv.yydy.link:2023/#/
