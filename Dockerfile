@@ -1,5 +1,5 @@
 FROM ubuntu:trusty
-MAINTAINER Wyatt Pan <wppurking@gmail.com>
+MAINTAINER ly Wu <wuluoyong7@gmail.com>
 
 ADD ./certs /opt/certs
 ADD ./bin /usr/local/bin
@@ -30,11 +30,11 @@ RUN mkdir -p /temp && cd /temp \
 # configuration lz4
 RUN mkdir -p /temp && cd /temp \
     && wget https://github.com/lz4/lz4/releases/latest -O lz4.html \
-    && export lz4_version=$(cat lz4.html | grep -m 1 -o 'v[0-9]\.[0-9]\.[0-9]') \
-    && export lz4_suffix=$(cat lz4.html | grep -m 1 -o '[0-9]\.[0-9]\.[0-9]') \
-    && wget https://github.com/lz4/lz4/archive/$lz4_version.tar.gz \
-    && tar xvf $lz4_version.tar.gz \
-    && cd lz4-$lz4_suffix \
+    && export LZ4_VERSION=$(cat lz4.html | grep -m 1 -o 'v[0-9]\.[0-9]\.[0-9]') \
+    && export LZ4_SUFFIX=$(cat lz4.html | grep -m 1 -o '[0-9]\.[0-9]\.[0-9]') \
+    && wget https://github.com/lz4/lz4/archive/{$LZ4_VERSION}.tar.gz \
+    && tar xvf {$LZ4_VERSION}.tar.gz \
+    && cd lz4-{$LZ4_SUFFIX} \
     && make install \
     && ln -sf /usr/local/lib/liblz4.* /usr/lib/ \
     && cd / && rm -rf /temp
@@ -42,21 +42,21 @@ RUN mkdir -p /temp && cd /temp \
 # configuration ocserv
 RUN mkdir -p /temp && cd /temp \
     && wget https://ocserv.gitlab.io/www/download.html \
-    && export ocserv_version=$(cat download.html | grep -o '[0-9]*\.[0-9]*\.[0-9]*') \
-    && wget ftp://ftp.infradead.org/pub/ocserv/ocserv-$ocserv_version.tar.xz \
-    && tar xvf ocserv-$ocserv_version.tar.xz \
-    && cd ocserv-$ocserv_version \
+    && export OCSERV_VERSION=$(cat download.html | grep -o '[0-9]*\.[0-9]*\.[0-9]*') \
+    && wget ftp://ftp.infradead.org/pub/ocserv/ocserv-{$OCSERV_VERSION}.tar.xz \
+    && tar xvf ocserv-{$OCSERV_VERSION}.tar.xz \
+    && cd ocserv-{$OCSERV_VERSION} \
     && ./configure --prefix=/usr --sysconfdir=/etc --with-local-talloc \
     && make && make install \
     && cd / && rm -rf /temp
 
 # generate sll keys
 RUN cd /opt/certs && ls \
-    && ca_cn=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired authority name/$ca_cn/g' /opt/certs/ca-tmp" \
-    && ca_org=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired orgnization name/$ca_org/g' /opt/certs/ca-tmp" \
-    && serv_domain=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-12} | head -n 1) && bash -c -i "sed -i 's/yourdomainname/$serv_domain/g' /opt/certs/serv-tmp" \
-    && serv_org=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired orgnization name/$serv_org/g' /opt/certs/serv-tmp" \
-    && user_id=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-10} | head -n 1) && bash -c "sed -i 's/user/$user_id/g' /opt/certs/user-tmp"
+    && CA_CN=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired authority name/$CA_CN/g' /opt/certs/ca-tmp" \
+    && CA_ORG=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired orgnization name/$CA_ORG/g' /opt/certs/ca-tmp" \
+    && SERV_DOMAIN=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-12} | head -n 1) && bash -c -i "sed -i 's/yourdomainname/$SERV_DOMAIN/g' /opt/certs/serv-tmp" \
+    && SERV_ORG=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired orgnization name/$SERV_ORG/g' /opt/certs/serv-tmp" \
+    && USER_ID=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-10} | head -n 1) && bash -c "sed -i 's/user/$USER_ID/g' /opt/certs/user-tmp"
 
 # generate [ca-key.pem] -> ca-cert.pem [ca-key]
 RUN certtool --generate-privkey --outfile /opt/certs/ca-key.pem && certtool --generate-self-signed --load-privkey /opt/certs/ca-key.pem --template /opt/certs/ca-tmp --outfile /opt/certs/ca-cert.pem

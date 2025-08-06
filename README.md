@@ -9,6 +9,20 @@
 在 [安装好 Docker 1.0+](https://gist.github.com/wppurking/55db8651a88425e0f977) 并且正常启动 Docker 后:
 
 * `cd ~;git clone https://github.com/wppurking/ocserv-docker.git` : 将当前 repo 下载, 拥有可调整的 ocserv.conf 配置文件以及 ocpasswd 用户密码文件
+* 
+```shell
+docker run -d \
+--name ocserv \
+--restart unless-stopped \
+--cap-add=NET_ADMIN \
+--device /dev/net/tun:/dev/net/tun \
+--sysctl net.ipv4.ip_forward=1 \
+-p 443:443/tcp \
+-p 443:443/udp \
+-v $(pwd)/ocserv:/etc/ocserv \
+--security-opt no-new-privileges \
+wppurking/ocserv
+```
 * `docker run -d --privileged --name ocserv-docker -v ~/ocserv-docker/ocserv:/etc/ocserv -p 443:443/tcp wppurking/ocserv`  :  Box 自动下载. ocserv 的一些功能需要 Docker 在 privileged 权限下处理
 * `docker logs ocserv-docker` : 查看运行日志, 检查是否正常运行(可重复执行).
 
@@ -55,7 +69,7 @@ $> Re-enter password:
 ```
 这个的原理是借用 docker 运行中的 container , 在其里面运行 `ocpasswd` 改变 Volumn 进去的 `./ocserv/ocpasswd` 文件内容, 所以当你运行完这行命令, 本机(非 container 中)的 `./ocserv/ocpasswd` 的文件内容会真实发生变化
 
-### 清理掉预设的两个用户名
+### 清理掉预设的两个用户名[ocserv.conf](ocserv/ocserv.conf)
 直接打开 `./ocserv/ocpasswd` 删掉 wyatt/holly 开头的两行就好了. 
 
 
