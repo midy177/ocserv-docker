@@ -23,7 +23,7 @@ docker run -d \
 --security-opt no-new-privileges \
 wppurking/ocserv
 ```
-* `docker run -d --privileged --name ocserv-docker -v ~/ocserv-docker/ocserv:/etc/ocserv -p 443:443/tcp wppurking/ocserv`  :  Box 自动下载. ocserv 的一些功能需要 Docker 在 privileged 权限下处理
+* `docker run -d --cap-add=NET_ADMIN --security-opt no-new-privileges --name ocserv-docker -v ~/ocserv-docker/ocserv:/etc/ocserv -p 443:443/tcp 1228022817/ocserv:latest`  :  Box 自动下载. ocserv 的一些功能需要 Docker 在 privileged 权限下处理
 * `docker logs ocserv-docker` : 查看运行日志, 检查是否正常运行(可重复执行).
 
 ```
@@ -38,7 +38,7 @@ listening (UDP) on [::]:443...
 
 * `cd ~ && git clone https://github.com/wppurking/ocserv-docker.git` : 将当前 repo 下载, 拥有可调整的 ocserv.conf 配置文件以及 ocpasswd 用户密码文件
 * `cd ~/ocserv-docker && docker build --no-cache -t ocserv-docker .` : 在 ocserv-docker 目录下, 重新构建全新的镜像使用. (例: 版本更新, 重新生成证书)
-* `docker run -d --privileged --name ocserv-docker -v ~/ocserv-docker/ocserv:/etc/ocserv -p 443:443/tcp ocserv-docker`  :  ocserv 的一些功能需要 Docker 在 privileged 权限下处理
+* `docker run -d --cap-add=NET_ADMIN --security-opt no-new-privileges --name ocserv-docker -v ~/ocserv-docker/ocserv:/etc/ocserv -p 443:443/tcp ocserv-docker`  :  ocserv 的一些功能需要 Docker 在 privileged 权限下处理
 * `docker logs ocserv-docker` : 查看运行日志, 检查是否正常运行(可重复执行).
 
 ## 使用
@@ -49,11 +49,16 @@ listening (UDP) on [::]:443...
 * 因为我们自己生成的 CA 证书是没有权威组织认证的, 所以 AnyConnect 需要接受这些 "不信任的 VPN" :P
 
 
-## 自定义证书, 密钥
-因为是构建一个独立的 box 进行分发, 方便快速部署一个 ocserv, 所以将证书, 密钥, 用户都集成在里面了, 此刻方便使用. 如果对于有担心的, 可以 `docker run -t -i wppurking/ocserv bash` 进入到 box 中使用 `certtool` 重新进行处理, 具体操作步骤参考 [[原创]linode vps debian7.5安装配置ocserv(OpenConnect server)](http://luoqkk.com/linode-vps-debian-installation-and-configuration-ocserv-openconnect-server.html)
-
-证书是在 Docker Build 的过程中自动生成的, 其生成的目的地为 `/opt/certs`
-[成功更换 certs 的例子](https://twitter.com/douglas_lee/status/590245251257737216)
+## 自定义证书, 密钥(entrypoint.sh通过环境变量运行时生成)
+```shell
+  CA_CN=${CA_CN:-$(gen_rand 32)}
+  CA_ORG=${CA_ORG:-$(gen_rand 32)}
+  SERV_DOMAIN=${SERV_DOMAIN:-$(gen_rand 12)}
+  SERV_ORG=${SERV_ORG:-$(gen_rand 32)}
+  USER_ID=${USER_ID:-$(gen_rand 10)}
+  CERT_P12_PASS=${CERT_P12_PASS:-616}
+```
+证书是在 Docker run 的过程中自动生成的, 其生成的目的地为 `/opt/certs`
 
 TODO: 自签名客户端证书登陆
 
