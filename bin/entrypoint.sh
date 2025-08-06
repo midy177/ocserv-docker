@@ -87,7 +87,7 @@ echo "[INFO] Configuring iptables for NAT..."
 iptables -t nat -C POSTROUTING -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -j MASQUERADE
 iptables -C FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
-if [ -f /opt/certs/server-cert.pem ]; then
+if [ -f /etc/ocserv/ldap.conf ]; then
   echo "[INFO] ldap config(/etc/ocserv/ldap.conf) exist. link to /etc."
   ln -s /etc/ocserv/ldap.conf /etc/ldap.conf
 fi
