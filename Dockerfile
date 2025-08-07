@@ -27,7 +27,6 @@ RUN apt-get update && apt-get install -y \
     xz-utils gnutls-bin \
     && rm -rf /var/lib/apt/lists/*
 
-
 # 安装 lz4
 RUN set -eux; \
     mkdir -p /temp && cd /temp \
@@ -56,7 +55,6 @@ RUN sed -i 's/^passwd:.*/passwd:\tfiles ldap/' /etc/nsswitch.conf \
     && sed -i 's/^group:.*/group:\tfiles ldap/' /etc/nsswitch.conf \
     && sed -i 's/^shadow:.*/shadow:\tfiles ldap/' /etc/nsswitch.conf
 
-
 # 写入 pam.d/ocserv
 RUN echo "auth    sufficient  pam_ldap.so"  >  /etc/pam.d/ocserv && \
     echo "auth    required    pam_unix.so"   >> /etc/pam.d/ocserv && \
@@ -64,7 +62,5 @@ RUN echo "auth    sufficient  pam_ldap.so"  >  /etc/pam.d/ocserv && \
     echo "account required    pam_unix.so"  >> /etc/pam.d/ocserv && \
     echo "password required   pam_ldap.so"  >> /etc/pam.d/ocserv && \
     echo "session  required   pam_ldap.so"  >> /etc/pam.d/ocserv
-
-
 
 CMD ["entrypoint.sh"]
