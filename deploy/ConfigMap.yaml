@@ -1,0 +1,97 @@
+apiVersion: v1
+data:
+  ldap.conf: |
+    base dc=examlpe,dc=com
+    uri ldap://118.31.26.12/
+    ldap_version 3
+    binddn cn=admin,dc=examlpe,dc=com
+    bindpw sdsfdgggfhgghg
+    scope sub
+    pam_login_attribute uid
+  nslcd.conf: |
+    uid nslcd
+    gid nslcd
+
+    uri ldap://118.31.26.12/
+    base dc=examlpe,dc=com
+    binddn cn=admin,dc=examlpe,dc=com
+    bindpw sdsfdgggfhgghg
+
+    tls_cacertfile /etc/ssl/certs/ca-certificates.crt
+  ocpasswd: wuly:*:$5$ycVXAvqaK.0aLs1P$h10mfCEJ3yA/atJgiamP4SADierJm0CgOIeI.LCEqjB
+  ocserv.conf: |
+    auth = "pam"
+
+    # 监听端口
+    tcp-port = 4443
+    udp-port = 4443
+
+    # 运行权限
+    run-as-user = nobody
+    run-as-group = daemon
+
+    # 进程与 socket 路径
+    socket-file = /var/run/ocserv-socket
+    pid-file = /var/run/ocserv.pid
+
+    # 证书配置
+    server-cert = /opt/certs/server-cert.pem
+    server-key  = /opt/certs/server-key.pem
+    ca-cert     = /opt/certs/ca-cert.pem
+
+
+    # IP 分配配置（IPv4）
+    ipv4-network = 10.7.7.0
+    ipv4-netmask = 255.255.255.0
+    predictable-ips = true
+
+    # DNS 和域名设置
+    dns = 172.20.0.10
+    default-domain = ocserv.example.com
+
+    # 虚拟设备名
+    device = vpns
+    net-priority = 6
+
+    # 路由设置（只传 10.x 和 172.20.x 网段）
+    route = 10.0.0.0/16
+    route = 172.20.0.0/16
+    # no-route = 0.0.0.0/0   # 如果你不需要阻止全局路由，建议注释掉此行
+
+    # 客户端限制
+    max-clients = 0
+    max-same-clients = 1
+    rate-limit-ms = 5
+
+    # 心跳与掉线检测
+    keepalive = 60
+    dpd = 90
+    mobile-dpd = 1800
+
+    # TLS 优化配置
+    tls-priorities = "PERFORMANCE:%SERVER_PRECEDENCE:%COMPAT:-VERS-SSL3.0"
+
+    # 会话与超时
+    auth-timeout = 40
+    idle-timeout = 86400
+    mobile-idle-timeout = 86400
+    cookie-timeout = 86400000
+    rekey-time = 86400000
+    rekey-method = ssl
+
+    # 防暴力攻击设置
+    max-ban-score = 50
+    ban-reset-time = 300
+
+    # 压缩设置
+    compression = true
+    no-compress-limit = 256
+
+    # 客户端兼容
+    cisco-client-compat = true
+
+    # 启用 occtl 管理
+    use-occtl = true
+kind: ConfigMap
+metadata:
+  name: ocserv-config

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: route-injector
+spec:
+  selector:
+    matchLabels:
+      name: route-injector
+  template:
+    metadata:
+      labels:
+        name: route-injector
+    spec:
+      hostNetwork: true
+      terminationGracePeriodSeconds: 60
+      restartPolicy: Always
+      containers:
+        - name: route-setup
+          image: alpine
+          securityContext:
+            privileged: true
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "[INFO] Deleting existing route to 10.7.7.0/24 if any..."
+              ip route del 10.7.7.0/24 2>/dev/null || true
+              echo "[INFO] Adding new route to 10.7.7.0/24 via ${OCSERV_POD_IP}..."
+              ip route add 10.7.7.0/24 via ${OCSERV_POD_IP}
+              echo "[INFO] Route set complete on $(hostname)"
+              sleep 60

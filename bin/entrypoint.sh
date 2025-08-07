@@ -86,7 +86,15 @@ fi
 
 # 设置 iptables NAT
 echo "[INFO] Configuring iptables for NAT..."
-iptables -t nat -C POSTROUTING -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -j MASQUERADE
+VPN_CIDR=$(awk -F' *= *' '$1=="ipv4-network"{ip=$2} $1=="ipv4-netmask"{mask=$2} END{if(ip&&mask){split(mask,o,".");c=0;for(i in o){n=o[i];while(n){c+=n%2;n=int(n/2)}};print ip"/"c}}' /etc/ocserv/ocserv.conf 2>/dev/null)
+if [ -n "$VPN_CIDR" ]; then
+  echo "[INFO] VPN_CIDR detected: $VPN_CIDR"
+  iptables -t nat -C POSTROUTING -s "$VPN_CIDR" -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s "$VPN_CIDR" -j MASQUERADE
+else
+  echo "[WARN] Failed to extract VPN_CIDR, falling back to general MASQUERADE rule"
+  iptables -t nat -C POSTROUTING -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -j MASQUERADE
+fi
+
 iptables -C FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
 if [ -f /etc/ocserv/ldap.conf ]; then

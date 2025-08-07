@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    workload.user.cattle.io/workloadselector: apps.deployment-default-ocserv
+  name: ocserv
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      workload.user.cattle.io/workloadselector: apps.deployment-default-ocserv
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        workload.user.cattle.io/workloadselector: apps.deployment-default-ocserv
+      namespace: default
+    spec:
+      containers:
+        - env:
+            - name: CA_ORG
+              value: yeastar
+            - name: SERV_DOMAIN
+              value: x5j85ws-rditspp.yeastardigital.com
+            - name: SERV_ORG
+              value: ys_ops
+            - name: USER_ID
+              value: 6X2m13^owxgJetUu
+          image: >-
+            1228022817/ocserv:latest@sha256:0ad9a6a41889dde87fe6abddd53938f47dec0af3141d8a7bfd50c134d24f3a21
+          imagePullPolicy: IfNotPresent
+          name: ocserv
+          ports:
+            - containerPort: 4443
+              name: tcp
+              protocol: TCP
+            - containerPort: 4443
+              name: udp
+              protocol: UDP
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - NET_ADMIN
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /etc/ocserv
+              name: vol-cfg
+      dnsPolicy: ClusterFirst
+      initContainers:
+        - args:
+            - |
+              echo "[INFO] Replacing OCSERV_POD_IP with ${OCSERV_POD_IP}..."
+              envsubst < /manifests/route-injector.yaml > /tmp/route.yaml
+              echo "[INFO] Applying route-injector DaemonSet..."
+              kubectl apply -f /tmp/route.yaml -n default
+              echo "[INFO] Waiting for route-injector Pods to be ready..."
+              kubectl rollout status daemonset/route-injector -n default --timeout=60s
+              echo "[INFO] All pods ready. Sleeping 5s before cleanup..."
+              sleep 5
+              echo "[INFO] Route injection complete, cleaning up..."
+              kubectl delete -f /tmp/route.yaml -n default --ignore-not-found
+          command:
+            - /bin/sh
+            - '-c'
+          env:
+            - name: OCSERV_POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          image: bitnami/kubectl:latest
+          imagePullPolicy: IfNotPresent
+          name: route-injector-init
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities: {}
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /manifests
+              name: vol-manifest
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: route-injector-sa
+      serviceAccountName: route-injector-sa
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            defaultMode: 384
+            name: ocserv-config
+          name: vol-cfg
+        - configMap:
+            defaultMode: 420
+            name: route-injector-manifest
+          name: vol-manifest
