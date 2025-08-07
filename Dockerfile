@@ -8,8 +8,7 @@ WORKDIR /etc/ocserv
 
 # 设置时区为中国
 RUN echo "Asia/Shanghai" > /etc/timezone && \
-    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    DEBIAN_FRONTEND=noninteractive dpkg-reconfigure tzdata
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 # 安装编译器、依赖、工具
 RUN apt-get update && apt-get install -y \

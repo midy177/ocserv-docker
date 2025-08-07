@@ -30,28 +30,30 @@ else
   sed -i "s/Your desired orgnization name/${SERV_ORG}/g" /opt/certs/serv-tmp
   sed -i "s/user/${USER_ID}/g" /opt/certs/user-tmp
 
-  # 生成证书
-  certtool --generate-privkey --outfile /opt/certs/ca-key.pem
+  # 生成 CA 私钥和证书
+  certtool --generate-privkey --outfile /opt/certs/ca-key.pem >/dev/null 2>&1
   certtool --generate-self-signed \
     --load-privkey /opt/certs/ca-key.pem \
     --template /opt/certs/ca-tmp \
-    --outfile /opt/certs/ca-cert.pem
+    --outfile /opt/certs/ca-cert.pem >/dev/null 2>&1
 
-  certtool --generate-privkey --outfile /opt/certs/server-key.pem
+  # 生成 Server 私钥和证书
+  certtool --generate-privkey --outfile /opt/certs/server-key.pem >/dev/null 2>&1
   certtool --generate-certificate \
     --load-privkey /opt/certs/server-key.pem \
     --load-ca-certificate /opt/certs/ca-cert.pem \
     --load-ca-privkey /opt/certs/ca-key.pem \
     --template /opt/certs/serv-tmp \
-    --outfile /opt/certs/server-cert.pem
+    --outfile /opt/certs/server-cert.pem >/dev/null 2>&1
 
-  certtool --generate-privkey --outfile /opt/certs/user-key.pem
+  # 生成 User 私钥和证书
+  certtool --generate-privkey --outfile /opt/certs/user-key.pem >/dev/null 2>&1
   certtool --generate-certificate \
     --load-privkey /opt/certs/user-key.pem \
     --load-ca-certificate /opt/certs/ca-cert.pem \
     --load-ca-privkey /opt/certs/ca-key.pem \
     --template /opt/certs/user-tmp \
-    --outfile /opt/certs/user-cert.pem
+    --outfile /opt/certs/user-cert.pem >/dev/null 2>&1
 
   # 导出 .p12 格式用户证书
   openssl pkcs12 -export \
@@ -59,7 +61,7 @@ else
     -in /opt/certs/user-cert.pem \
     -certfile /opt/certs/ca-cert.pem \
     -out /opt/certs/user.p12 \
-    -passout pass:${CERT_P12_PASS}
+    -passout pass:${CERT_P12_PASS} >/dev/null 2>&1
 fi
 
 # 如果 dnsmasq 存在则启动
@@ -71,8 +73,8 @@ else
 fi
 
 # 开启 IPv4 转发
-echo "[INFO] Enabling IPv4 forwarding..."
-sysctl -w net.ipv4.ip_forward=1
+echo "[INFO] Check if enabling IPv4 forwarding..."
+sysctl -n net.ipv4.ip_forward
 
 # 检查 /dev/net/tun 是否存在
 if [ ! -e /dev/net/tun ]; then
@@ -89,11 +91,13 @@ iptables -C FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
 if [ -f /etc/ocserv/ldap.conf ]; then
   echo "[INFO] ldap config(/etc/ocserv/ldap.conf) exist. link to /etc."
-  rm /etc/ldap.conf
-  ln -s /etc/ocserv/ldap.conf /etc/ldap.conf
-  sed -i 's/^passwd:.*/passwd:\tfiles ldap/' /etc/nsswitch.conf
-  sed -i 's/^group:.*/group:\tfiles ldap/' /etc/nsswitch.conf
-  sed -i 's/^shadow:.*/shadow:\tfiles ldap/' /etc/nsswitch.conf
+  ln -sf /etc/ocserv/ldap.conf /etc/ldap.conf
+fi
+
+if [ -f /etc/ocserv/nslcd.conf ]; then
+  echo "[INFO] ldap config(/etc/ocserv/nslcd.conf) exist. link to /etc."
+  ln -sf /etc/ocserv/nslcd.conf /etc/nslcd.conf
+  service nslcd start
 fi
 
 # 启动 ocserv
