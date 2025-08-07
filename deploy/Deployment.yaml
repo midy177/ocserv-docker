@@ -31,7 +31,7 @@ spec:
             - name: USER_ID
               value: 6X2m13^owxgJetUu
           image: >-
-            1228022817/ocserv:latest@sha256:0ad9a6a41889dde87fe6abddd53938f47dec0af3141d8a7bfd50c134d24f3a21
+            1228022817/ocserv:latest@sha256:4d99e8833432303dfa1052baaa82380ac8370fb1f736d9135ff405802cd61ce6
           imagePullPolicy: IfNotPresent
           name: ocserv
           ports:
@@ -66,7 +66,6 @@ spec:
               echo "[INFO] Waiting for route-injector Pods to be ready..."
               kubectl rollout status daemonset/route-injector -n default --timeout=60s
               echo "[INFO] All pods ready. Sleeping 5s before cleanup..."
-              sleep 5
               echo "[INFO] Route injection complete, cleaning up..."
               kubectl delete -f /tmp/route.yaml -n default --ignore-not-found
           command:

@@ -23,9 +23,12 @@ spec:
           args:
             - |
               set -e
-              echo "[INFO] Deleting existing route to 10.7.7.0/24 if any..."
-              ip route del 10.7.7.0/24 2>/dev/null || true
-              echo "[INFO] Adding new route to 10.7.7.0/24 via ${OCSERV_POD_IP}..."
-              ip route add 10.7.7.0/24 via ${OCSERV_POD_IP}
-              echo "[INFO] Route set complete on $(hostname)"
-              sleep 60
+              echo "[INFO] Checking route to 10.7.7.0/24 via ${OCSERV_POD_IP}..."
+              if ip route | grep -q "10.7.7.0/24 via ${OCSERV_POD_IP}"; then
+                echo "[INFO] Route already exists"
+              else
+                echo "[INFO] Adding route"
+                ip route del 10.7.7.0/24 2>/dev/null || true
+                ip route add 10.7.7.0/24 via ${OCSERV_POD_IP}
+              fi
+              sleep infinity
