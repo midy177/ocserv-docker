@@ -7,7 +7,9 @@ RUN chmod a+x /usr/local/bin/*
 WORKDIR /etc/ocserv
 
 # 设置时区为中国
-RUN echo "Asia/Shanghai" > /etc/timezone
+RUN echo "Asia/Shanghai" > /etc/timezone && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    DEBIAN_FRONTEND=noninteractive dpkg-reconfigure tzdata
 
 # 安装编译器、依赖、工具
 RUN apt-get update && apt-get install -y \
@@ -21,7 +23,7 @@ RUN apt-get update && apt-get install -y \
     libnl-route-3-dev libkrb5-dev liboath-dev libtalloc-dev \
     libhttp-parser-dev libopts25-dev liblockfile-bin \
     # LDAP 支持
-    libnss-ldap \
+    libpam-ldapd libnss-ldapd \
     # 时区/其他
     xz-utils gnutls-bin \
     && rm -rf /var/lib/apt/lists/*
@@ -50,6 +52,20 @@ RUN set -eux; \
     make -j"$(nproc)"; \
     make install; \
     cd /; rm -rf /temp
+
+RUN sed -i 's/^passwd:.*/passwd:\tfiles ldap/' /etc/nsswitch.conf \
+    && sed -i 's/^group:.*/group:\tfiles ldap/' /etc/nsswitch.conf \
+    && sed -i 's/^shadow:.*/shadow:\tfiles ldap/' /etc/nsswitch.conf
+
+
+# 写入 pam.d/ocserv
+RUN echo "auth    sufficient  pam_ldap.so"  >  /etc/pam.d/ocserv && \
+    echo "auth    required    pam_unix.so"   >> /etc/pam.d/ocserv && \
+    echo "account sufficient  pam_ldap.so"  >> /etc/pam.d/ocserv && \
+    echo "account required    pam_unix.so"  >> /etc/pam.d/ocserv && \
+    echo "password required   pam_ldap.so"  >> /etc/pam.d/ocserv && \
+    echo "session  required   pam_ldap.so"  >> /etc/pam.d/ocserv
+
 
 
 CMD ["entrypoint.sh"]

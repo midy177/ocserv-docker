@@ -89,7 +89,11 @@ iptables -C FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
 if [ -f /etc/ocserv/ldap.conf ]; then
   echo "[INFO] ldap config(/etc/ocserv/ldap.conf) exist. link to /etc."
+  rm /etc/ldap.conf
   ln -s /etc/ocserv/ldap.conf /etc/ldap.conf
+  sed -i 's/^passwd:.*/passwd:\tfiles ldap/' /etc/nsswitch.conf
+  sed -i 's/^group:.*/group:\tfiles ldap/' /etc/nsswitch.conf
+  sed -i 's/^shadow:.*/shadow:\tfiles ldap/' /etc/nsswitch.conf
 fi
 
 # 启动 ocserv
