@@ -1,5 +1,5 @@
 #!/bin/bash
-set -Eeuo pipefail
+set -e
 
 # 生成随机串
 gen_rand() {
@@ -26,10 +26,10 @@ else
 
   # 更安全的分隔符，避免变量包含 '/'
   sed -i "s|Your desired authority name|${CA_CN}|g"      /opt/certs/ca-tmp
-  sed -i "s|Your desired orgnization name|${CA_ORG}|g"  /opt/certs/ca-tmp
-  sed -i "s|yourdomainname|${SERV_DOMAIN}|g"            /opt/certs/serv-tmp
-  sed -i "s|Your desired orgnization name|${SERV_ORG}|g"/opt/certs/serv-tmp
-  sed -i "s|user|${USER_ID}|g"                          /opt/certs/user-tmp
+  sed -i "s|Your desired orgnization name|${CA_ORG}|g"   /opt/certs/ca-tmp
+  sed -i "s|yourdomainname|${SERV_DOMAIN}|g"             /opt/certs/serv-tmp
+  sed -i "s|Your desired orgnization name|${SERV_ORG}|g" /opt/certs/serv-tmp
+  sed -i "s|user|${USER_ID}|g"                           /opt/certs/user-tmp
 
   certtool --generate-privkey --outfile /opt/certs/ca-key.pem >/dev/null 2>&1
   certtool --generate-self-signed \
@@ -161,7 +161,9 @@ fi
 if [ -f /etc/ocserv/nslcd.conf ]; then
   echo "[INFO] ldap config(/etc/ocserv/nslcd.conf) exist. link to /etc."
   ln -sf /etc/ocserv/nslcd.conf /etc/nslcd.conf
-  service nslcd start || true
+  if ! service nslcd start; then
+      echo "[WARN] nslcd start failed"
+  fi
 fi
 
 echo "[INFO] Starting OpenConnect server..."
