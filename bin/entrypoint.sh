@@ -1,15 +1,15 @@
 #!/bin/bash
-set -e
+set -Eeuo pipefail
 
-# 默认值（如未设置则生成随机字符串）
+# 生成随机串
 gen_rand() {
-  cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1
+  tr -dc 'a-zA-Z0-9' </dev/urandom | head -c "${1:-32}"
 }
 
+# 证书
 if [ -f /opt/certs/server-cert.pem ]; then
   echo "[INFO] Certificates already exist. Skipping generation."
 else
-  # 执行替换 + 生成逻辑（包裹成一个函数）
   CA_CN=${CA_CN:-$(gen_rand 32)}
   CA_ORG=${CA_ORG:-$(gen_rand 32)}
   SERV_DOMAIN=${SERV_DOMAIN:-$(gen_rand 12)}
@@ -23,21 +23,20 @@ else
   echo "SERV_ORG=${SERV_ORG}"
   echo "USER_ID=${USER_ID}"
   echo "CERT_P12_PASS=${CERT_P12_PASS}"
-  # 替换模板内容
-  sed -i "s/Your desired authority name/${CA_CN}/g" /opt/certs/ca-tmp
-  sed -i "s/Your desired orgnization name/${CA_ORG}/g" /opt/certs/ca-tmp
-  sed -i "s/yourdomainname/${SERV_DOMAIN}/g" /opt/certs/serv-tmp
-  sed -i "s/Your desired orgnization name/${SERV_ORG}/g" /opt/certs/serv-tmp
-  sed -i "s/user/${USER_ID}/g" /opt/certs/user-tmp
 
-  # 生成 CA 私钥和证书
+  # 更安全的分隔符，避免变量包含 '/'
+  sed -i "s|Your desired authority name|${CA_CN}|g"      /opt/certs/ca-tmp
+  sed -i "s|Your desired orgnization name|${CA_ORG}|g"  /opt/certs/ca-tmp
+  sed -i "s|yourdomainname|${SERV_DOMAIN}|g"            /opt/certs/serv-tmp
+  sed -i "s|Your desired orgnization name|${SERV_ORG}|g"/opt/certs/serv-tmp
+  sed -i "s|user|${USER_ID}|g"                          /opt/certs/user-tmp
+
   certtool --generate-privkey --outfile /opt/certs/ca-key.pem >/dev/null 2>&1
   certtool --generate-self-signed \
     --load-privkey /opt/certs/ca-key.pem \
     --template /opt/certs/ca-tmp \
     --outfile /opt/certs/ca-cert.pem >/dev/null 2>&1
 
-  # 生成 Server 私钥和证书
   certtool --generate-privkey --outfile /opt/certs/server-key.pem >/dev/null 2>&1
   certtool --generate-certificate \
     --load-privkey /opt/certs/server-key.pem \
@@ -46,7 +45,6 @@ else
     --template /opt/certs/serv-tmp \
     --outfile /opt/certs/server-cert.pem >/dev/null 2>&1
 
-  # 生成 User 私钥和证书
   certtool --generate-privkey --outfile /opt/certs/user-key.pem >/dev/null 2>&1
   certtool --generate-certificate \
     --load-privkey /opt/certs/user-key.pem \
@@ -55,7 +53,6 @@ else
     --template /opt/certs/user-tmp \
     --outfile /opt/certs/user-cert.pem >/dev/null 2>&1
 
-  # 导出 .p12 格式用户证书
   openssl pkcs12 -export \
     -inkey /opt/certs/user-key.pem \
     -in /opt/certs/user-cert.pem \
@@ -64,50 +61,108 @@ else
     -passout pass:${CERT_P12_PASS} >/dev/null 2>&1
 fi
 
-# 如果 dnsmasq 存在则启动
+# dnsmasq（可选）
 if command -v dnsmasq >/dev/null 2>&1; then
-    echo "[INFO] dnsmasq found. Starting dnsmasq..."
-    dnsmasq -C /usr/local/etc/dnsmasq.conf
+  echo "[INFO] dnsmasq found. Starting dnsmasq..."
+  dnsmasq -C /usr/local/etc/dnsmasq.conf
 else
-    echo "[INFO] dnsmasq not found. Skipping dnsmasq start."
+  echo "[INFO] dnsmasq not found. Skipping dnsmasq start."
 fi
 
-# 开启 IPv4 转发
-echo "[INFO] Check if enabling IPv4 forwarding..."
-sysctl -n net.ipv4.ip_forward
+# IPv4 转发
+echo "[INFO] Enabling IPv4 forwarding..."
+sysctl -w net.ipv4.ip_forward=1 >/dev/null || true
+echo "[INFO] net.ipv4.ip_forward=$(sysctl -n net.ipv4.ip_forward)"
 
-# 检查 /dev/net/tun 是否存在
+# /dev/net/tun
 if [ ! -e /dev/net/tun ]; then
-    echo "[INFO] Creating /dev/net/tun..."
-    mkdir -p /dev/net
-    mknod /dev/net/tun c 10 200
-    chmod 600 /dev/net/tun
+  echo "[INFO] Creating /dev/net/tun..."
+  mkdir -p /dev/net
+  mknod /dev/net/tun c 10 200
+  chmod 600 /dev/net/tun
 fi
 
-# 设置 iptables NAT
-echo "[INFO] Configuring iptables for NAT..."
-VPN_CIDR=$(awk -F' *= *' '$1=="ipv4-network"{ip=$2} $1=="ipv4-netmask"{mask=$2} END{if(ip&&mask){split(mask,o,".");c=0;for(i in o){n=o[i];while(n){c+=n%2;n=int(n/2)}};print ip"/"c}}' /etc/ocserv/ocserv.conf 2>/dev/null)
-if [ -n "$VPN_CIDR" ]; then
-  echo "[INFO] VPN_CIDR detected: $VPN_CIDR"
-  iptables -t nat -C POSTROUTING -s "$VPN_CIDR" -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s "$VPN_CIDR" -j MASQUERADE
+# 从 ocserv.conf 提取 VPN_CIDR：兼容三种写法
+extract_vpn_cidr() {
+  awk '
+    BEGIN{ip=""; mask=""; prefix=""}
+    $1=="ipv4-network"{ # 形如 ipv4-network = 10.7.7.0 或 10.7.7.0/24
+      split($0,a,"=");
+      gsub(/ /,"",a[2])
+      if (index(a[2],"/")>0){ print a[2]; exit } else { ip=a[2] }
+    }
+    $1=="ipv4-netmask"{
+      split($0,a,"="); gsub(/ /,"",a[2]); mask=a[2]
+    }
+    $1=="ipv4-prefix"{
+      split($0,a,"="); gsub(/ /,"",a[2]); prefix=a[2]
+    }
+    END{
+      if(ip!="" && prefix!=""){ print ip"/"prefix; exit }
+      if(ip!="" && mask!=""){
+        split(mask,o,"."); c=0;
+        for(i=1;i<=4;i++){ n=o[i]+0; while(n){ c+=n%2; n=int(n/2) } }
+        print ip"/"c; exit
+      }
+    }' /etc/ocserv/ocserv.conf 2>/dev/null
+}
+
+VPN_CIDR="${VPN_CIDR:-$(extract_vpn_cidr || true)}"
+if [ -n "${VPN_CIDR:-}" ]; then
+  echo "[INFO] VPN_CIDR detected: ${VPN_CIDR}"
 else
-  echo "[WARN] Failed to extract VPN_CIDR, falling back to general MASQUERADE rule"
-  iptables -t nat -C POSTROUTING -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -j MASQUERADE
+  echo "[WARN] Could not detect VPN_CIDR from ocserv.conf; you may export VPN_CIDR env."
 fi
 
-iptables -C FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+# 路由模式：由 ROUTE_CIDRS 是否为空决定
+ROUTE_CIDRS="${ROUTE_CIDRS:-}"
 
+# 先做路由模式的 NAT 豁免（RETURN 插到最前），再兜底 MASQUERADE
+if [ -n "${ROUTE_CIDRS}" ] && [ -n "${VPN_CIDR:-}" ]; then
+  echo "[MODE] Route mode: add NAT exemption (RETURN) for ${VPN_CIDR} -> ${ROUTE_CIDRS}"
+  for ROUTE_CIDR in ${ROUTE_CIDRS}; do
+    if iptables -t nat -C POSTROUTING -s "${VPN_CIDR}" -d "${ROUTE_CIDR}" -j RETURN 2>/dev/null; then
+      echo "[INFO] RETURN exists: ${VPN_CIDR} -> ${ROUTE_CIDR}"
+    else
+      iptables -t nat -I POSTROUTING 1 -s "${VPN_CIDR}" -d "${ROUTE_CIDR}" -j RETURN || \
+        echo "[WARN] Failed to insert RETURN for ${ROUTE_CIDR}"
+    fi
+  done
+else
+  echo "[MODE] Non-route mode: skip NAT exemption"
+fi
+
+# 兜底 MASQUERADE（若路由模式生效，RETURN 在前会挡住它）
+if [ -n "${VPN_CIDR:-}" ]; then
+  iptables -t nat -C POSTROUTING -s "${VPN_CIDR}" -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -A POSTROUTING -s "${VPN_CIDR}" -j MASQUERADE
+else
+  iptables -t nat -C POSTROUTING -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -A POSTROUTING -j MASQUERADE
+fi
+
+# 放通 FORWARD（幂等）+ MSS 钳制（避免大包碎片/卡顿）
+if [ -n "${VPN_CIDR:-}" ] && [ -n "${ROUTE_CIDRS:-}" ]; then
+  for ROUTE_CIDR in ${ROUTE_CIDRS}; do
+    iptables -C FORWARD -s "${VPN_CIDR}" -d "${ROUTE_CIDR}" -j ACCEPT 2>/dev/null || \
+      iptables -I FORWARD 1 -s "${VPN_CIDR}" -d "${ROUTE_CIDR}" -j ACCEPT
+    iptables -C FORWARD -s "${ROUTE_CIDR}" -d "${VPN_CIDR}" -j ACCEPT 2>/dev/null || \
+      iptables -I FORWARD 1 -s "${ROUTE_CIDR}" -d "${VPN_CIDR}" -j ACCEPT
+  done
+fi
+iptables -t mangle -C FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || \
+  iptables -t mangle -I FORWARD 1 -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+
+# LDAP 软链/服务
 if [ -f /etc/ocserv/ldap.conf ]; then
   echo "[INFO] ldap config(/etc/ocserv/ldap.conf) exist. link to /etc."
   ln -sf /etc/ocserv/ldap.conf /etc/ldap.conf
 fi
-
 if [ -f /etc/ocserv/nslcd.conf ]; then
   echo "[INFO] ldap config(/etc/ocserv/nslcd.conf) exist. link to /etc."
   ln -sf /etc/ocserv/nslcd.conf /etc/nslcd.conf
-  service nslcd start
+  service nslcd start || true
 fi
 
-# 启动 ocserv
 echo "[INFO] Starting OpenConnect server..."
 exec ocserv -c /etc/ocserv/ocserv.conf -f "$@"
