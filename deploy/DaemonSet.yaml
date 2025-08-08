@@ -12,7 +12,7 @@ spec:
         name: route-injector
     spec:
       hostNetwork: true
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 10
       restartPolicy: Always
       containers:
         - name: route-setup
@@ -23,12 +23,19 @@ spec:
           args:
             - |
               set -e
-              echo "[INFO] Checking route to 10.7.7.0/24 via ${OCSERV_POD_IP}..."
-              if ip route | grep -q "10.7.7.0/24 via ${OCSERV_POD_IP}"; then
+              apk add --no-cache iproute2 iptables
+              echo "[INFO] Enable IP forwarding"
+              sysctl -w net.ipv4.ip_forward=1 || true
+              echo "[INFO] Insert NAT exemption for ${POD_CIDR} -> ${VPN_CIDR}"
+              if ! iptables -t nat -C POSTROUTING -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN 2>/dev/null; then
+                iptables -t nat -I POSTROUTING 1 -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN || true
+              fi
+              echo "[INFO] Checking route to ${VPN_CIDR} via ${OCSERV_POD_IP}..."
+              if ip route | grep -q "${VPN_CIDR} via ${OCSERV_POD_IP}"; then
                 echo "[INFO] Route already exists"
               else
                 echo "[INFO] Adding route"
-                ip route del 10.7.7.0/24 2>/dev/null || true
-                ip route add 10.7.7.0/24 via ${OCSERV_POD_IP}
+                ip route del ${VPN_CIDR} 2>/dev/null || true
+                ip route add ${VPN_CIDR} via ${OCSERV_POD_IP} || true
               fi
               sleep infinity

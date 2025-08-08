@@ -144,7 +144,7 @@ data:
             name: route-injector
         spec:
           hostNetwork: true
-          terminationGracePeriodSeconds: 60
+          terminationGracePeriodSeconds: 10
           restartPolicy: Always
           containers:
             - name: route-setup
@@ -155,13 +155,20 @@ data:
               args:
                 - |
                   set -e
-                  echo "[INFO] Checking route to 10.7.7.0/24 via ${OCSERV_POD_IP}..."
-                  if ip route | grep -q "10.7.7.0/24 via ${OCSERV_POD_IP}"; then
+                  apk add --no-cache iproute2 iptables
+                  echo "[INFO] Enable IP forwarding"
+                  sysctl -w net.ipv4.ip_forward=1 || true
+                  echo "[INFO] Insert NAT exemption for ${POD_CIDR} -> ${VPN_CIDR}"
+                  if ! iptables -t nat -C POSTROUTING -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN 2>/dev/null; then
+                    iptables -t nat -I POSTROUTING 1 -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN || true
+                  fi
+                  echo "[INFO] Checking route to ${VPN_CIDR} via ${OCSERV_POD_IP}..."
+                  if ip route | grep -q "${VPN_CIDR} via ${OCSERV_POD_IP}"; then
                     echo "[INFO] Route already exists"
                   else
                     echo "[INFO] Adding route"
-                    ip route del 10.7.7.0/24 2>/dev/null || true
-                    ip route add 10.7.7.0/24 via ${OCSERV_POD_IP}
+                    ip route del ${VPN_CIDR} 2>/dev/null || true
+                    ip route add ${VPN_CIDR} via ${OCSERV_POD_IP} || true
                   fi
                   sleep infinity
 kind: ConfigMap
@@ -196,11 +203,11 @@ spec:
             - name: CA_ORG
               value: yeastar
             - name: SERV_DOMAIN
-              value: x5j85ws-rditspp.yeastardigital.com
+              value: x5j85ws-rditspp.exampe.com
             - name: SERV_ORG
               value: ys_ops
             - name: USER_ID
-              value: 6X2m13^owxgJetUu
+              value: 6X2m13^sssdegrDS@
           image: >-
             1228022817/ocserv:latest@sha256:4d99e8833432303dfa1052baaa82380ac8370fb1f736d9135ff405802cd61ce6
           imagePullPolicy: IfNotPresent
@@ -230,24 +237,14 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
         - args:
-            - >
+            - |
               echo "[INFO] Replacing OCSERV_POD_IP with ${OCSERV_POD_IP}..."
-
               envsubst < /manifests/route-injector.yaml > /tmp/route.yaml
-
               echo "[INFO] Applying route-injector DaemonSet..."
-
               kubectl apply -f /tmp/route.yaml -n default
-
               echo "[INFO] Waiting for route-injector Pods to be ready..."
-
-              kubectl rollout status daemonset/route-injector -n default
-              --timeout=60s
-
-              echo "[INFO] All pods ready. Sleeping 5s before cleanup..."
-
+              kubectl rollout status daemonset/route-injector -n default --timeout=120s
               echo "[INFO] Route injection complete, cleaning up..."
-
               kubectl delete -f /tmp/route.yaml -n default --ignore-not-found
           command:
             - /bin/sh
@@ -258,6 +255,10 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: status.podIP
+            - name: POD_CIDR
+              value: 10.0.0.0/16
+            - name: VPN_CIDR
+              value: 10.7.7.0/24
           image: bitnami/kubectl:latest
           imagePullPolicy: IfNotPresent
           name: route-injector-init
