@@ -114,6 +114,18 @@ else
   echo "[WARN] Could not detect VPN_CIDR from ocserv.conf; you may export VPN_CIDR env."
 fi
 
+#清空 iptables 规则
+echo "[INFO] Clearing all iptables rules..."
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -t mangle -F
+iptables -t mangle -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT
+
 # 路由模式：由 ROUTE_CIDRS 是否为空决定
 ROUTE_CIDRS="${ROUTE_CIDRS:-}"
 
