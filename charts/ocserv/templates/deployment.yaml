@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ocserv.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ocserv.labels" . | nindent 4 }}
+spec:
+  replicas: {{ if gt (int .Values.replicaCount | default 0) 0 }}1{{ else }}0{{ end }}
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      {{- include "ocserv.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "ocserv.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ocserv.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- with .Values.dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.routeInjector.enabled }}
+      initContainers:
+        - name: route-injector-init
+          image: {{ .Values.routeInjector.image.repository }}:{{ .Values.routeInjector.image.tag }}
+          imagePullPolicy: {{ .Values.routeInjector.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - '-c'
+          args:
+            - |
+              echo "[INFO] Replacing OCSERV_POD_IP with ${OCSERV_POD_IP}..."
+              envsubst < /manifests/route-injector.yaml > /tmp/route.yaml
+              echo "[INFO] Applying route-injector DaemonSet..."
+              kubectl apply -f /tmp/route.yaml -n {{ .Release.Namespace }}
+              echo "[INFO] Waiting for route-injector Pods to be ready..."
+              kubectl rollout status daemonset/route-injector -n {{ .Release.Namespace }} --timeout=120s
+              echo "[INFO] Route injection complete, cleaning up..."
+              kubectl delete -f /tmp/route.yaml -n {{ .Release.Namespace }} --ignore-not-found
+          env:
+            - name: OCSERV_POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_CIDR
+              value: {{ .Values.network.podCidr | quote }}
+            - name: VPN_CIDR
+              value: {{ .Values.network.vpn.cidr | quote }}
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /manifests
+              name: vol-manifest
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- if .Values.image.digest }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}@{{ .Values.image.digest }}"
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: CA_ORG
+              value: {{ .Values.ocserv.env.caOrg | quote }}
+            - name: SERV_DOMAIN
+              value: {{ .Values.ocserv.env.servDomain | quote }}
+            - name: SERV_ORG
+              value: {{ .Values.ocserv.env.servOrg | quote }}
+            - name: USER_ID
+              value: {{ .Values.ocserv.env.userId | quote }}
+          ports:
+            - name: tcp
+              containerPort: {{ .Values.service.tcpPort }}
+              protocol: TCP
+            - name: udp
+              containerPort: {{ .Values.service.udpPort }}
+              protocol: UDP
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /etc/ocserv
+              name: vol-cfg
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      volumes:
+        - name: vol-cfg
+          configMap:
+            name: {{ include "ocserv.fullname" . }}-config
+            defaultMode: 384
+        {{- if .Values.routeInjector.enabled }}
+        - name: vol-manifest
+          configMap:
+            name: {{ include "ocserv.fullname" . }}-route-injector-manifest
+            defaultMode: 420
+        {{- end }}
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30

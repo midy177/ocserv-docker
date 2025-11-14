@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ocserv.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ocserv.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- if and (eq .Values.service.type "NodePort") .Values.service.udpNodePort }}
+  externalTrafficPolicy: {{ .Values.service.externalTrafficPolicy | default "Cluster" }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.service.tcpPort }}
+      targetPort: tcp
+      protocol: TCP
+      name: tcp
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.tcpNodePort }}
+      nodePort: {{ .Values.service.tcpNodePort }}
+      {{- end }}
+    - port: {{ .Values.service.udpPort }}
+      targetPort: udp
+      protocol: UDP
+      name: udp
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.udpNodePort }}
+      nodePort: {{ .Values.service.udpNodePort }}
+      {{- end }}
+  selector:
+    {{- include "ocserv.selectorLabels" . | nindent 4 }}

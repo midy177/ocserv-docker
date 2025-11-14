@@ -1,0 +1,231 @@
+# Default values for ocserv.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Replica count for the deployment
+replicaCount: 1
+
+# Container image configuration
+image:
+  repository: 1228022817/ocserv
+  pullPolicy: IfNotPresent
+  tag: "latest"
+  # Optional: Specify image digest for exact version pinning
+  digest: "sha256:4d99e8833432303dfa1052baaa82380ac8370fb1f736d9135ff405802cd61ce6"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service Account configuration
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: "route-injector-sa"
+
+# RBAC configuration
+rbac:
+  create: true
+  roleName: "route-injector-role"
+
+# Pod configuration
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    add:
+      - NET_ADMIN
+  privileged: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: false
+
+# Service configuration
+service:
+  type: NodePort
+  tcpPort: 4443
+  udpPort: 4443
+  # Optional: Specify NodePort values
+  # tcpNodePort: 30443
+  # udpNodePort: 30443
+
+# Network configuration
+network:
+  # Kubernetes Pod CIDR
+  podCidr: "10.0.0.0/16"
+  # VPN network configuration
+  vpn:
+    # IPv4 network for VPN clients
+    ipv4Network: "10.7.7.0"
+    ipv4Netmask: "255.255.255.0"
+    # Full CIDR notation for VPN network
+    cidr: "10.7.7.0/24"
+  # DNS servers for VPN clients
+  dns:
+    - "172.20.0.10"
+  # Routes to push to VPN clients
+  routes:
+    - "10.0.0.0/16"
+    - "172.20.0.0/16"
+  # Default domain for VPN clients
+  defaultDomain: "ocserv.example.com"
+
+# DNS policy configuration
+dnsPolicy: "ClusterFirstWithHostNet"
+dnsConfig: {}
+
+# OCServ configuration
+ocserv:
+  # Environment variables
+  env:
+    caOrg: "yeastar"
+    servDomain: "x5j85ws-rditspp.exampe.com"
+    servOrg: "ys_ops"
+    userId: "6X2m13^sssdegrDS@"
+
+  # Server configuration
+  config:
+    # Authentication method, pam or plain
+    auth: "plain[passwd=/etc/ocserv/ocpasswd]"
+    # Server ports
+    tcpPort: 4443
+    udpPort: 4443
+    # Run as user/group
+    runAsUser: "nobody"
+    runAsGroup: "daemon"
+    # Virtual device name
+    device: "vpns"
+    netPriority: 6
+    # Client limits
+    maxClients: 0
+    maxSameClients: 1
+    rateLimitMs: 5
+    # Keepalive and DPD settings
+    keepalive: 60
+    dpd: 90
+    mobileDpd: 1800
+    # TLS configuration
+    tlsPriorities: "PERFORMANCE:%SERVER_PRECEDENCE:%COMPAT:-VERS-SSL3.0"
+    # Session and timeout settings
+    authTimeout: 40
+    idleTimeout: 86400
+    mobileIdleTimeout: 86400
+    cookieTimeout: 86400000
+    rekeyTime: 86400000
+    rekeyMethod: "ssl"
+    # Ban settings
+    maxBanScore: 50
+    banResetTime: 300
+    # Compression settings
+    compression: true
+    noCompressLimit: 256
+    # Client compatibility
+    ciscoClientCompat: true
+    # Enable occtl management
+    useOcctl: true
+    # Predictable IPs
+    predictableIps: true
+
+# LDAP configuration (if using LDAP authentication)
+ldap:
+  enabled: false
+  uri: "ldap://11.3.26.12/"
+  base: "dc=examlpe,dc=com"
+  version: 3
+  bindDn: "cn=admin,dc=examlpe,dc=com"
+  bindPassword: "sdsfdgggfhgghg"
+  scope: "sub"
+  pamLoginAttribute: "uid"
+  nslcd:
+    uid: "nslcd"
+    gid: "nslcd"
+    tlsCaCertFile: "/etc/ssl/certs/ca-certificates.crt"
+
+# User credentials (for ocpasswd file)
+users:
+  # Format: username:*:hashed_password
+  credentials: "wuly:*:$5$ycVXAvqaK.0aLs1P$h10mfCEJ3yA/atJgiamP4SADierJm0CgOIeI.LCEqjB"
+
+# Route injector configuration
+routeInjector:
+  enabled: true
+  image:
+    repository: "bitnami/kubectl"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  daemonset:
+    image:
+      repository: "alpine"
+      tag: "latest"
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 250m
+  #   memory: 256Mi
+
+# Liveness and readiness probes
+# Note: OCServ doesn't expose HTTP endpoints by default
+# You may need to customize these based on your setup
+livenessProbe: {}
+  # tcpSocket:
+  #   port: tcp
+  # initialDelaySeconds: 30
+  # periodSeconds: 10
+
+readinessProbe: {}
+  # tcpSocket:
+  #   port: tcp
+  # initialDelaySeconds: 10
+  # periodSeconds: 5
+
+# Ingress configuration (OCServ typically doesn't use HTTP ingress)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# HTTPRoute configuration
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  hostnames:
+    - chart-example.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+# Additional volumes and volume mounts
+volumes: []
+volumeMounts: []
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Strategy type for deployment
+strategy:
+  type: Recreate

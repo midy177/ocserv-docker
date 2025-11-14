@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ocserv.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ocserv.labels" . | nindent 4 }}
+data:
+{{- if .Values.ldap.enabled }}
+  ldap.conf: |
+    base {{ .Values.ldap.base }}
+    uri {{ .Values.ldap.uri }}
+    ldap_version {{ .Values.ldap.version }}
+    binddn {{ .Values.ldap.bindDn }}
+    bindpw {{ .Values.ldap.bindPassword }}
+    scope {{ .Values.ldap.scope }}
+    pam_login_attribute {{ .Values.ldap.pamLoginAttribute }}
+  nslcd.conf: |
+    uid {{ .Values.ldap.nslcd.uid }}
+    gid {{ .Values.ldap.nslcd.gid }}
+
+    uri {{ .Values.ldap.uri }}
+    base {{ .Values.ldap.base }}
+    binddn {{ .Values.ldap.bindDn }}
+    bindpw {{ .Values.ldap.bindPassword }}
+
+    tls_cacertfile {{ .Values.ldap.nslcd.tlsCaCertFile }}
+{{- end }}
+  ocpasswd: {{ .Values.users.credentials }}
+  ocserv.conf: |
+    auth = "{{ .Values.ocserv.config.auth }}"
+
+    # 监听端口
+    tcp-port = {{ .Values.ocserv.config.tcpPort }}
+    udp-port = {{ .Values.ocserv.config.udpPort }}
+
+    # 运行权限
+    run-as-user = {{ .Values.ocserv.config.runAsUser }}
+    run-as-group = {{ .Values.ocserv.config.runAsGroup }}
+
+    # 进程与 socket 路径
+    socket-file = /var/run/ocserv-socket
+    pid-file = /var/run/ocserv.pid
+
+    # 证书配置
+    server-cert = /opt/certs/server-cert.pem
+    server-key  = /opt/certs/server-key.pem
+    ca-cert     = /opt/certs/ca-cert.pem
+
+
+    # IP 分配配置（IPv4）
+    ipv4-network = {{ .Values.network.vpn.ipv4Network }}
+    ipv4-netmask = {{ .Values.network.vpn.ipv4Netmask }}
+    predictable-ips = {{ .Values.ocserv.config.predictableIps }}
+
+    # DNS 和域名设置
+    {{- range .Values.network.dns }}
+    dns = {{ . }}
+    {{- end }}
+    default-domain = {{ .Values.network.defaultDomain }}
+
+    # 虚拟设备名
+    device = {{ .Values.ocserv.config.device }}
+    net-priority = {{ .Values.ocserv.config.netPriority }}
+
+    # 路由设置（只传 10.x 和 172.20.x 网段）
+    {{- range .Values.network.routes }}
+    route = {{ . }}
+    {{- end }}
+    # no-route = 0.0.0.0/0   # 如果你不需要阻止全局路由，建议注释掉此行
+
+    # 客户端限制
+    max-clients = {{ .Values.ocserv.config.maxClients }}
+    max-same-clients = {{ .Values.ocserv.config.maxSameClients }}
+    rate-limit-ms = {{ .Values.ocserv.config.rateLimitMs }}
+
+    # 心跳与掉线检测
+    keepalive = {{ .Values.ocserv.config.keepalive }}
+    dpd = {{ .Values.ocserv.config.dpd }}
+    mobile-dpd = {{ .Values.ocserv.config.mobileDpd }}
+
+    # TLS 优化配置
+    tls-priorities = "{{ .Values.ocserv.config.tlsPriorities }}"
+
+    # 会话与超时
+    auth-timeout = {{ .Values.ocserv.config.authTimeout }}
+    idle-timeout = {{ .Values.ocserv.config.idleTimeout }}
+    mobile-idle-timeout = {{ .Values.ocserv.config.mobileIdleTimeout }}
+    cookie-timeout = {{ printf "%.0f" .Values.ocserv.config.cookieTimeout }}
+    rekey-time = {{ printf "%.0f" .Values.ocserv.config.rekeyTime }}
+    rekey-method = {{ .Values.ocserv.config.rekeyMethod }}
+
+    # 防暴力攻击设置
+    max-ban-score = {{ .Values.ocserv.config.maxBanScore }}
+    ban-reset-time = {{ .Values.ocserv.config.banResetTime }}
+
+    # 压缩设置
+    compression = {{ .Values.ocserv.config.compression }}
+    no-compress-limit = {{ .Values.ocserv.config.noCompressLimit }}
+
+    # 客户端兼容
+    cisco-client-compat = {{ .Values.ocserv.config.ciscoClientCompat }}
+
+    # 启用 occtl 管理
+    use-occtl = {{ .Values.ocserv.config.useOcctl }}
+---
+{{- if .Values.routeInjector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ocserv.fullname" . }}-route-injector-manifest
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ocserv.labels" . | nindent 4 }}
+data:
+  route-injector.yaml: |
+    apiVersion: apps/v1
+    kind: DaemonSet
+    metadata:
+      name: route-injector
+    spec:
+      selector:
+        matchLabels:
+          name: route-injector
+      template:
+        metadata:
+          labels:
+            name: route-injector
+        spec:
+          hostNetwork: true
+          terminationGracePeriodSeconds: 10
+          restartPolicy: Always
+          containers:
+            - name: route-setup
+              image: {{ .Values.routeInjector.daemonset.image.repository }}:{{ .Values.routeInjector.daemonset.image.tag | default "latest" }}
+              securityContext:
+                privileged: true
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  apk add --no-cache iproute2 iptables
+                  echo "[INFO] Enable IP forwarding"
+                  sysctl -w net.ipv4.ip_forward=1 || true
+                  echo "[INFO] Insert NAT exemption for ${POD_CIDR} -> ${VPN_CIDR}"
+                  if ! iptables -t nat -C POSTROUTING -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN 2>/dev/null; then
+                    iptables -t nat -I POSTROUTING 1 -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN || true
+                  fi
+                  echo "[INFO] Checking route to ${VPN_CIDR} via ${OCSERV_POD_IP}..."
+                  if ip route | grep -q "${VPN_CIDR} via ${OCSERV_POD_IP}"; then
+                    echo "[INFO] Route already exists"
+                  else
+                    echo "[INFO] Adding route"
+                    ip route del ${VPN_CIDR} 2>/dev/null || true
+                    ip route add ${VPN_CIDR} via ${OCSERV_POD_IP} || true
+                  fi
+                  sleep infinity
+{{- end }}

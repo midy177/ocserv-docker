@@ -1,0 +1,29 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.rbac.roleName | default (printf "%s-role" (include "ocserv.fullname" .)) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ocserv.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.rbac.roleName | default (printf "%s-role" (include "ocserv.fullname" .)) }}-binding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ocserv.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ocserv.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ .Values.rbac.roleName | default (printf "%s-role" (include "ocserv.fullname" .)) }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

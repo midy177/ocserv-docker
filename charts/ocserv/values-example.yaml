@@ -1,0 +1,105 @@
+# Example custom values for OCServ Helm Chart
+# 这是一个示例配置文件，展示如何自定义常见配置
+
+# 镜像配置
+image:
+  repository: 1228022817/ocserv
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# 副本数
+replicaCount: 1
+
+# 网络配置
+network:
+  # Kubernetes Pod CIDR（根据你的集群配置调整）
+  podCidr: "10.0.0.0/16"
+
+  # VPN 网段配置
+  vpn:
+    ipv4Network: "10.7.7.0"
+    ipv4Netmask: "255.255.255.0"
+    cidr: "10.7.7.0/24"
+
+  # DNS 服务器（推送给 VPN 客户端）
+  dns:
+    - "172.20.0.10"    # 内网 DNS
+    # - "8.8.8.8"      # 可选：Google DNS
+
+  # 路由配置（只推送这些网段的流量到 VPN）
+  routes:
+    - "10.0.0.0/16"      # 内网网段1
+    - "172.20.0.0/16"    # 内网网段2
+
+  # 默认域名
+  defaultDomain: "vpn.example.com"
+
+# 服务配置
+service:
+  type: NodePort
+  tcpPort: 4443
+  udpPort: 4443
+  # 如果使用 NodePort，可以指定端口
+  # tcpNodePort: 30443
+  # udpNodePort: 30443
+
+# OCServ 环境变量
+ocserv:
+  env:
+    caOrg: "MyCompany"
+    servDomain: "vpn.example.com"
+    servOrg: "IT Department"
+    userId: "change-me-to-secure-password"
+
+  config:
+    # 认证方式
+    auth: "pam"
+
+    # 端口配置
+    tcpPort: 4443
+    udpPort: 4443
+
+    # 客户端限制
+    maxClients: 100          # 最大客户端数，0 表示无限制
+    maxSameClients: 2        # 同一用户最大并发连接数
+
+    # 超时设置（秒）
+    idleTimeout: 86400       # 24小时
+    mobileIdleTimeout: 86400 # 移动设备空闲超时
+
+# 用户凭证
+# 使用 ocpasswd 工具生成密码哈希
+users:
+  credentials: "admin:*:$5$ycVXAvqaK.0aLs1P$h10mfCEJ3yA/atJgiamP4SADierJm0CgOIeI.LCEqjB"
+
+# LDAP 认证（可选）
+ldap:
+  enabled: false
+  # 如需启用，配置以下参数：
+  # uri: "ldap://ldap.example.com/"
+  # base: "dc=example,dc=com"
+  # bindDn: "cn=admin,dc=example,dc=com"
+  # bindPassword: "password"
+
+# 路由注入器
+routeInjector:
+  enabled: true
+
+# 资源限制
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# 节点选择器（可选）
+nodeSelector: {}
+  # kubernetes.io/hostname: node1
+
+# 容忍度（可选）
+tolerations: []
+
+# 亲和性（可选）
+affinity: {}
