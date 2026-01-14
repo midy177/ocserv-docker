@@ -147,8 +147,21 @@ ldap:
 
 # User credentials (for ocpasswd file)
 users:
-  # Format: username:*:hashed_password
-  credentials: "wuly:*:$5$ycVXAvqaK.0aLs1P$h10mfCEJ3yA/atJgiamP4SADierJm0CgOIeI.LCEqjB"
+  # Option 1: Multiple users with plain text passwords (recommended)
+  list:
+    - username: "wuly"
+      password: "your_secure_password_here"
+    - username: "admin"
+      password: "another_secure_password"
+  
+  # Option 2: Single user with plain text password
+  # username: "wuly"
+  # password: "your_secure_password_here"
+  
+  # Option 3: Pre-hashed credentials (backward compatibility)
+  # credentials: |
+  #   wuly:*:$5$ycVXAvqaK.0aLs1P$h10mfCEJ3yA/atJgiamP4SADierJm0CgOIeI.LCEqjB
+  #   admin:*:$5$xYzAbcDefG.1bCdR$i20nfDFK4zB/atJgiamP4SADierJm0CgOIeI.LCEqjB
 
 # Route injector configuration
 routeInjector:
@@ -186,32 +199,7 @@ readinessProbe: {}
   # initialDelaySeconds: 10
   # periodSeconds: 5
 
-# Ingress configuration (OCServ typically doesn't use HTTP ingress)
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
 
-# HTTPRoute configuration
-httpRoute:
-  enabled: false
-  annotations: {}
-  parentRefs:
-    - name: gateway
-      sectionName: http
-  hostnames:
-    - chart-example.local
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
 
 # Additional volumes and volume mounts
 volumes: []
