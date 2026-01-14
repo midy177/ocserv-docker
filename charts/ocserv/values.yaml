@@ -60,10 +60,7 @@ network:
   podCidr: "10.0.0.0/16"
   # VPN network configuration
   vpn:
-    # IPv4 network for VPN clients
-    ipv4Network: "10.7.7.0"
-    ipv4Netmask: "255.255.255.0"
-    # Full CIDR notation for VPN network
+    # CIDR notation for VPN network (ipv4Network and ipv4Netmask will be auto-generated)
     cidr: "10.7.7.0/24"
   # DNS servers for VPN clients
   dns:
@@ -84,7 +81,6 @@ ocserv:
   # Environment variables
   env:
     caOrg: "yeastar"
-    servDomain: "x5j85ws-rditspp.exampe.com"
     servOrg: "ys_ops"
     userId: "6X2m13^sssdegrDS@"
 

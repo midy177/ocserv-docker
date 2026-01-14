@@ -41,13 +41,12 @@ charts/ocserv/
 | ConfigMap: ocserv.conf - dns | `172.20.0.10` | `network.dns[0]` |
 | ConfigMap: ocserv.conf - route | `10.0.0.0/16` | `network.routes[0]` |
 | ConfigMap: ocserv.conf - route | `172.20.0.0/16` | `network.routes[1]` |
-| ConfigMap: ocserv.conf - ipv4-network | `10.7.7.0` | `network.vpn.ipv4Network` |
-| ConfigMap: ocserv.conf - ipv4-netmask | `255.255.255.0` | `network.vpn.ipv4Netmask` |
+| ConfigMap: ocserv.conf - ipv4-network | `10.7.7.0` | 从 `network.vpn.cidr` 自动生成 |
+| ConfigMap: ocserv.conf - ipv4-netmask | `255.255.255.0` | 从 `network.vpn.cidr` 自动生成 |
 | ConfigMap: ocserv.conf - default-domain | `ocserv.example.com` | `network.defaultDomain` |
 | Deployment: env - POD_CIDR | `10.0.0.0/16` | `network.podCidr` |
 | Deployment: env - VPN_CIDR | `10.7.7.0/24` | `network.vpn.cidr` |
 | Deployment: env - CA_ORG | `yeastar` | `ocserv.env.caOrg` |
-| Deployment: env - SERV_DOMAIN | `x5j85ws-rditspp.exampe.com` | `ocserv.env.servDomain` |
 | Deployment: env - SERV_ORG | `ys_ops` | `ocserv.env.servOrg` |
 | Deployment: env - USER_ID | `6X2m13^sssdegrDS@` | `ocserv.env.userId` |
 | Deployment: image | `1228022817/ocserv:latest@sha256:...` | `image.repository`, `image.tag`, `image.digest` |
@@ -137,8 +136,6 @@ helm upgrade ocserv charts/ocserv -f my-values.yaml
 ```yaml
 network:
   vpn:
-    ipv4Network: "10.8.0.0"
-    ipv4Netmask: "255.255.255.0"
     cidr: "10.8.0.0/24"
 ```
 

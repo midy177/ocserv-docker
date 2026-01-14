@@ -45,9 +45,7 @@ helm install ocserv ./charts/ocserv -n vpn --create-namespace
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
 | `network.podCidr` | Kubernetes Pod CIDR | `10.0.0.0/16` |
-| `network.vpn.ipv4Network` | VPN 客户端 IPv4 网络 | `10.7.7.0` |
-| `network.vpn.ipv4Netmask` | VPN 客户端网络掩码 | `255.255.255.0` |
-| `network.vpn.cidr` | VPN 网络 CIDR 表示法 | `10.7.7.0/24` |
+| `network.vpn.cidr` | VPN 网络 CIDR（ipv4Network 和 ipv4Netmask 自动生成） | `10.7.7.0/24` |
 | `network.dns` | DNS 服务器列表 | `["172.20.0.10"]` |
 | `network.routes` | 推送给客户端的路由 | `["10.0.0.0/16", "172.20.0.0/16"]` |
 | `network.defaultDomain` | 默认域名 | `ocserv.example.com` |
@@ -57,7 +55,6 @@ helm install ocserv ./charts/ocserv -n vpn --create-namespace
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
 | `ocserv.env.caOrg` | CA 组织名称 | `yeastar` |
-| `ocserv.env.servDomain` | 服务器域名 | `x5j85ws-rditspp.exampe.com` |
 | `ocserv.env.servOrg` | 服务器组织名称 | `ys_ops` |
 | `ocserv.env.userId` | 用户 ID | `6X2m13^sssdegrDS@` |
 
@@ -110,8 +107,6 @@ ocpasswd -c /tmp/ocpasswd username
 ```yaml
 network:
   vpn:
-    ipv4Network: "10.8.0.0"
-    ipv4Netmask: "255.255.255.0"
     cidr: "10.8.0.0/24"
 ```
 

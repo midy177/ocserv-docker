@@ -62,26 +62,19 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Get VPN network address (backward compatibility)
+Get VPN network address from CIDR
 */}}
 {{- define "ocserv.vpn.ipv4Network" -}}
-{{- if .Values.network.vpn.ipv4Network -}}
-{{- .Values.network.vpn.ipv4Network | quote -}}
-{{- else -}}
 {{- $cidr := .Values.network.vpn.cidr | default "10.7.7.0/24" -}}
 {{- $parts := splitList "/" $cidr -}}
 {{- $network := index $parts 0 -}}
 {{- $network | quote -}}
 {{- end }}
-{{- end }}
 
 {{/*
-Get VPN netmask (backward compatibility)
+Get VPN netmask from CIDR prefix
 */}}
 {{- define "ocserv.vpn.ipv4Netmask" -}}
-{{- if .Values.network.vpn.ipv4Netmask -}}
-{{- .Values.network.vpn.ipv4Netmask | quote -}}
-{{- else -}}
 {{- $cidr := .Values.network.vpn.cidr | default "10.7.7.0/24" -}}
 {{- $parts := splitList "/" $cidr -}}
 {{- $prefix := int (index $parts 1) -}}
@@ -118,7 +111,6 @@ Get VPN netmask (backward compatibility)
 {{- else if eq $prefix 2 }}{{- "192.0.0.0" | quote -}}
 {{- else if eq $prefix 1 }}{{- "128.0.0.0" | quote -}}
 {{- else }}{{- "0.0.0.0" | quote -}}
-{{- end }}
 {{- end }}
 {{- end }}
 
