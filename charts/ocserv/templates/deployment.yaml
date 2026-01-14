@@ -49,24 +49,22 @@ spec:
             - '-c'
           args:
             - |
-              echo "[INFO] Replacing OCSERV_POD_IP with ${OCSERV_POD_IP}..."
-              envsubst < /manifests/route-injector.yaml > /tmp/route.yaml
-              echo "[INFO] Applying route-injector DaemonSet..."
+              echo "[INFO] Getting OCSERV Pod IP..."
+              OCSERV_POD_IP=$(kubectl get pod {{ include "ocserv.fullname" . }}-0 -n {{ .Release.Namespace }} -o jsonpath='{.status.podIP}')
+              echo "[INFO] OCSERV_POD_IP: $OCSERV_POD_IP"
+              
+              echo "[INFO] Creating DaemonSet with OCSERV_POD_IP environment variable..."
+              kubectl get configmap {{ include "ocserv.fullname" . }}-route-injector-manifest -n {{ .Release.Namespace }} -o yaml | \
+                sed "s/env: \[\]/env:\n            - name: OCSERV_POD_IP\n              value: $OCSERV_POD_IP/g" > /tmp/route.yaml
+              
               kubectl apply -f /tmp/route.yaml -n {{ .Release.Namespace }}
+              
               echo "[INFO] Waiting for route-injector Pods to be ready..."
               kubectl rollout status daemonset/route-injector -n {{ .Release.Namespace }} --timeout=120s
+              
               echo "[INFO] Route injection complete, cleaning up..."
               kubectl delete -f /tmp/route.yaml -n {{ .Release.Namespace }} --ignore-not-found
-          env:
-            - name: OCSERV_POD_IP
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: status.podIP
-            - name: POD_CIDR
-              value: {{ .Values.network.podCidr | quote }}
-            - name: VPN_CIDR
-              value: {{ .Values.network.vpn.cidr | quote }}
+          env: []
           resources: {}
           securityContext:
             allowPrivilegeEscalation: true
@@ -93,7 +91,7 @@ spec:
             - name: CA_ORG
               value: {{ .Values.ocserv.env.caOrg | quote }}
             - name: SERV_DOMAIN
-              value: {{ .Values.ocserv.env.servDomain | quote }}
+              value: {{ .Values.network.defaultDomain | quote }}
             - name: SERV_ORG
               value: {{ .Values.ocserv.env.servOrg | quote }}
             - name: USER_ID

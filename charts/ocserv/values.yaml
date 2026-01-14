@@ -9,7 +9,7 @@ replicaCount: 1
 image:
   repository: 1228022817/ocserv
   pullPolicy: IfNotPresent
-  tag: "latest"
+  tag: "v2.1.0"
   # Optional: Specify image digest for exact version pinning
   digest: "sha256:4d99e8833432303dfa1052baaa82380ac8370fb1f736d9135ff405802cd61ce6"
 
@@ -159,8 +159,8 @@ routeInjector:
     pullPolicy: IfNotPresent
   daemonset:
     image:
-      repository: "alpine"
-      tag: "latest"
+      repository: "docker.io/1228022817/ocserv-init"
+      tag: "v2.1.0"
 
 # Resource limits and requests
 resources: {}

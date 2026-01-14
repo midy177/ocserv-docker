@@ -26,7 +26,8 @@ data:
 
     tls_cacertfile {{ .Values.ldap.nslcd.tlsCaCertFile }}
 {{- end }}
-  ocpasswd: {{ .Values.users.credentials }}
+  ocpasswd: |
+{{ include "ocserv.user.ocpasswdContent" . | nindent 4 }}
   ocserv.conf: |
     auth = "{{ .Values.ocserv.config.auth }}"
 
@@ -49,8 +50,8 @@ data:
 
 
     # IP 分配配置（IPv4）
-    ipv4-network = {{ .Values.network.vpn.ipv4Network }}
-    ipv4-netmask = {{ .Values.network.vpn.ipv4Netmask }}
+    ipv4-network = {{ include "ocserv.vpn.ipv4Network" . }}
+    ipv4-netmask = {{ include "ocserv.vpn.ipv4Netmask" . }}
     predictable-ips = {{ .Values.ocserv.config.predictableIps }}
 
     # DNS 和域名设置
@@ -138,21 +139,6 @@ data:
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  set -e
-                  apk add --no-cache iproute2 iptables
-                  echo "[INFO] Enable IP forwarding"
-                  sysctl -w net.ipv4.ip_forward=1 || true
-                  echo "[INFO] Insert NAT exemption for ${POD_CIDR} -> ${VPN_CIDR}"
-                  if ! iptables -t nat -C POSTROUTING -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN 2>/dev/null; then
-                    iptables -t nat -I POSTROUTING 1 -s "${POD_CIDR}" -d "${VPN_CIDR}" -j RETURN || true
-                  fi
-                  echo "[INFO] Checking route to ${VPN_CIDR} via ${OCSERV_POD_IP}..."
-                  if ip route | grep -q "${VPN_CIDR} via ${OCSERV_POD_IP}"; then
-                    echo "[INFO] Route already exists"
-                  else
-                    echo "[INFO] Adding route"
-                    ip route del ${VPN_CIDR} 2>/dev/null || true
-                    ip route add ${VPN_CIDR} via ${OCSERV_POD_IP} || true
-                  fi
-                  sleep infinity
+{{ include "ocserv.routeInjector.daemonScript" . | nindent 18 }}
+              env: []
 {{- end }}
