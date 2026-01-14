@@ -15,7 +15,7 @@
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
 {{- else }}
   echo "Access the VPN service using AnyConnect client with the following:"
-  echo "- Server: chart-example.local:{{ .Values.service.tcpPort }}"
+  echo "- Server: {{ .Values.service.defaultDomain }}:{{ .Values.service.tcpPort }}"
   echo "- TCP Port: {{ .Values.service.tcpPort }}"
   echo "- UDP Port: {{ .Values.service.udpPort }}"
   echo "- Username: admin (default)"

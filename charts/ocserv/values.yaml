@@ -46,10 +46,11 @@ securityContext:
 
 # Service configuration
 service:
-  type: NodePort
+  type: ClusterIP
   tcpPort: 4443
   udpPort: 4443
-  # Optional: Specify NodePort values
+  # Optional: Use NodePort for external access
+  # type: NodePort
   # tcpNodePort: 30443
   # udpNodePort: 30443
 
