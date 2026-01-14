@@ -34,12 +34,16 @@ Create chart name and version as used by the chart label.
 Common labels
 */}}
 {{- define "ocserv.labels" -}}
+{{- if not .Values.renderMode.enabled }}
 helm.sh/chart: {{ include "ocserv.chart" . }}
+{{- end }}
 {{ include "ocserv.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
+{{- if not .Values.renderMode.enabled }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -68,7 +72,7 @@ Get VPN network address from CIDR
 {{- $cidr := .Values.network.vpn.cidr | default "10.7.7.0/24" -}}
 {{- $parts := splitList "/" $cidr -}}
 {{- $network := index $parts 0 -}}
-{{- $network | quote -}}
+{{- $network -}}
 {{- end }}
 
 {{/*
@@ -78,39 +82,39 @@ Get VPN netmask from CIDR prefix
 {{- $cidr := .Values.network.vpn.cidr | default "10.7.7.0/24" -}}
 {{- $parts := splitList "/" $cidr -}}
 {{- $prefix := int (index $parts 1) -}}
-{{- if eq $prefix 32 }}{{- "255.255.255.255" | quote -}}
-{{- else if eq $prefix 31 }}{{- "255.255.255.254" | quote -}}
-{{- else if eq $prefix 30 }}{{- "255.255.255.252" | quote -}}
-{{- else if eq $prefix 29 }}{{- "255.255.255.248" | quote -}}
-{{- else if eq $prefix 28 }}{{- "255.255.255.240" | quote -}}
-{{- else if eq $prefix 27 }}{{- "255.255.255.224" | quote -}}
-{{- else if eq $prefix 26 }}{{- "255.255.255.192" | quote -}}
-{{- else if eq $prefix 25 }}{{- "255.255.255.128" | quote -}}
-{{- else if eq $prefix 24 }}{{- "255.255.255.0" | quote -}}
-{{- else if eq $prefix 23 }}{{- "255.255.254.0" | quote -}}
-{{- else if eq $prefix 22 }}{{- "255.255.252.0" | quote -}}
-{{- else if eq $prefix 21 }}{{- "255.255.248.0" | quote -}}
-{{- else if eq $prefix 20 }}{{- "255.255.240.0" | quote -}}
-{{- else if eq $prefix 19 }}{{- "255.255.224.0" | quote -}}
-{{- else if eq $prefix 18 }}{{- "255.255.192.0" | quote -}}
-{{- else if eq $prefix 17 }}{{- "255.255.128.0" | quote -}}
-{{- else if eq $prefix 16 }}{{- "255.255.0.0" | quote -}}
-{{- else if eq $prefix 15 }}{{- "254.0.0.0" | quote -}}
-{{- else if eq $prefix 14 }}{{- "252.0.0.0" | quote -}}
-{{- else if eq $prefix 13 }}{{- "248.0.0.0" | quote -}}
-{{- else if eq $prefix 12 }}{{- "240.0.0.0" | quote -}}
-{{- else if eq $prefix 11 }}{{- "224.0.0.0" | quote -}}
-{{- else if eq $prefix 10 }}{{- "192.0.0.0" | quote -}}
-{{- else if eq $prefix 9 }}{{- "255.128.0.0" | quote -}}
-{{- else if eq $prefix 8 }}{{- "255.0.0.0" | quote -}}
-{{- else if eq $prefix 7 }}{{- "254.0.0.0" | quote -}}
-{{- else if eq $prefix 6 }}{{- "252.0.0.0" | quote -}}
-{{- else if eq $prefix 5 }}{{- "248.0.0.0" | quote -}}
-{{- else if eq $prefix 4 }}{{- "240.0.0.0" | quote -}}
-{{- else if eq $prefix 3 }}{{- "224.0.0.0" | quote -}}
-{{- else if eq $prefix 2 }}{{- "192.0.0.0" | quote -}}
-{{- else if eq $prefix 1 }}{{- "128.0.0.0" | quote -}}
-{{- else }}{{- "0.0.0.0" | quote -}}
+{{- if eq $prefix 32 }}{{- "255.255.255.255" -}}
+{{- else if eq $prefix 31 }}{{- "255.255.255.254" -}}
+{{- else if eq $prefix 30 }}{{- "255.255.255.252" -}}
+{{- else if eq $prefix 29 }}{{- "255.255.255.248" -}}
+{{- else if eq $prefix 28 }}{{- "255.255.255.240" -}}
+{{- else if eq $prefix 27 }}{{- "255.255.255.224" -}}
+{{- else if eq $prefix 26 }}{{- "255.255.255.192" -}}
+{{- else if eq $prefix 25 }}{{- "255.255.255.128" -}}
+{{- else if eq $prefix 24 }}{{- "255.255.255.0" -}}
+{{- else if eq $prefix 23 }}{{- "255.255.254.0" -}}
+{{- else if eq $prefix 22 }}{{- "255.255.252.0" -}}
+{{- else if eq $prefix 21 }}{{- "255.255.248.0" -}}
+{{- else if eq $prefix 20 }}{{- "255.255.240.0" -}}
+{{- else if eq $prefix 19 }}{{- "255.255.224.0" -}}
+{{- else if eq $prefix 18 }}{{- "255.255.192.0" -}}
+{{- else if eq $prefix 17 }}{{- "255.255.128.0" -}}
+{{- else if eq $prefix 16 }}{{- "255.255.0.0" -}}
+{{- else if eq $prefix 15 }}{{- "254.0.0.0" -}}
+{{- else if eq $prefix 14 }}{{- "252.0.0.0" -}}
+{{- else if eq $prefix 13 }}{{- "248.0.0.0" -}}
+{{- else if eq $prefix 12 }}{{- "240.0.0.0" -}}
+{{- else if eq $prefix 11 }}{{- "224.0.0.0" -}}
+{{- else if eq $prefix 10 }}{{- "192.0.0.0" -}}
+{{- else if eq $prefix 9 }}{{- "255.128.0.0" -}}
+{{- else if eq $prefix 8 }}{{- "255.0.0.0" -}}
+{{- else if eq $prefix 7 }}{{- "254.0.0.0" -}}
+{{- else if eq $prefix 6 }}{{- "252.0.0.0" -}}
+{{- else if eq $prefix 5 }}{{- "248.0.0.0" -}}
+{{- else if eq $prefix 4 }}{{- "240.0.0.0" -}}
+{{- else if eq $prefix 3 }}{{- "224.0.0.0" -}}
+{{- else if eq $prefix 2 }}{{- "192.0.0.0" -}}
+{{- else if eq $prefix 1 }}{{- "128.0.0.0" -}}
+{{- else }}{{- "0.0.0.0" -}}
 {{- end }}
 {{- end }}
 

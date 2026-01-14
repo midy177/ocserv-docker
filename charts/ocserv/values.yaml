@@ -2,6 +2,14 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Render mode configuration
+# When enabled, skips helm-specific labels (helm.sh/chart, app.kubernetes.io/managed-by)
+# Use this when generating templates for manual deployment or integration with other tools
+# Note: app.kubernetes.io/name, app.kubernetes.io/instance, and app.kubernetes.io/version
+#       are always preserved as they are essential for Kubernetes resource management
+renderMode:
+  enabled: false
+
 # Replica count for the deployment
 replicaCount: 1
 
